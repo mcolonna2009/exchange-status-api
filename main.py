@@ -15,7 +15,7 @@ REGIONS = {
     "Asia-Pacific": ["Japan", "China", "India", "Australia", "South Korea", "Taiwan", "Singapore", "Hong Kong"],
 }
 
-# Major exchange → index symbol mapping
+# Exchange name → (index symbol, label)
 INDEX_SYMBOLS = {
     "New York Stock Exchange, Inc.": ("DJI", "Dow Jones"),
     "NASDAQ": ("IXIC", "NASDAQ"),
@@ -36,9 +36,9 @@ def fetch_index(symbol: str, name: str):
         price = float(data['close'])
         change = float(data['percent_change'])
         arrow = "▲" if change >= 0 else "▼"
-        return f"{price:,.2f} {arrow} {change:+.2f}%"
+        return f"{name}: {price:,.2f} {arrow} {change:+.2f}%"
     except:
-        return "N/A"
+        return f"{name}: N/A"
 
 @app.route('/')
 def market_status():
@@ -47,7 +47,7 @@ def market_status():
 
     r = requests.get(f'https://api.twelvedata.com/exchanges?apikey={API_KEY}')
     data = r.json().get('data', [])
-    
+
     now_utc = datetime.utcnow().replace(second=0, microsecond=0)
     region_stats = {}
 
@@ -56,6 +56,8 @@ def market_status():
             name = ex.get('name')
             country = ex.get('country')
             tz = ex.get('timezone')
+
+            print("Exchange name:", name)  # debug log
 
             local_time = now_utc.astimezone(ZoneInfo(tz))
             is_open = (
@@ -71,11 +73,10 @@ def market_status():
                     "exchanges": []
                 }
 
-            # Check for enrichment
             enriched = ""
             if name in INDEX_SYMBOLS:
                 sym, label = INDEX_SYMBOLS[name]
-                enriched = f" — {label}: {fetch_index(sym, label)}"
+                enriched = f" — {fetch_index(sym, label)}"
 
             status_line = f"{'✅' if is_open else '❌'} {name} ({country}) – {'Open' if is_open else 'Closed'}{enriched}"
             if is_open:
