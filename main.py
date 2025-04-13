@@ -5,7 +5,7 @@ from zoneinfo import ZoneInfo
 
 app = Flask(__name__)
 
-API_KEY = 'dc9e776dd069479b906c09fbd9dcc9ba'  # Replace with your actual TwelveData API key
+API_KEY = 'dc9e776dd069479b906c09fbd9dcc9ba'
 TRADING_START = time(9, 0)
 TRADING_END = time(17, 0)
 
@@ -15,11 +15,30 @@ REGIONS = {
     "Asia-Pacific": ["Japan", "China", "India", "Australia", "South Korea", "Taiwan", "Singapore", "Hong Kong"],
 }
 
+# Major exchange → index symbol mapping
+INDEX_SYMBOLS = {
+    "New York Stock Exchange, Inc.": ("DJI", "Dow Jones"),
+    "NASDAQ": ("IXIC", "NASDAQ"),
+    "London Stock Exchange": ("FTSE", "FTSE 100"),
+    "JPX (Japan)": ("N225", "Nikkei 225")
+}
+
 def get_region(country):
     for region, countries in REGIONS.items():
         if country in countries:
             return region
     return "Other"
+
+def fetch_index(symbol: str, name: str):
+    try:
+        r = requests.get(f'https://api.twelvedata.com/quote?symbol={symbol}&apikey={API_KEY}')
+        data = r.json()
+        price = float(data['close'])
+        change = float(data['percent_change'])
+        arrow = "▲" if change >= 0 else "▼"
+        return f"{price:,.2f} {arrow} {change:+.2f}%"
+    except:
+        return "N/A"
 
 @app.route('/')
 def market_status():
@@ -52,12 +71,19 @@ def market_status():
                     "exchanges": []
                 }
 
+            # Check for enrichment
+            enriched = ""
+            if name in INDEX_SYMBOLS:
+                sym, label = INDEX_SYMBOLS[name]
+                enriched = f" — {label}: {fetch_index(sym, label)}"
+
+            status_line = f"{'✅' if is_open else '❌'} {name} ({country}) – {'Open' if is_open else 'Closed'}{enriched}"
             if is_open:
                 region_stats[region]["open"] += 1
-                region_stats[region]["exchanges"].append(f"✅ {name} ({country}) – Open")
             else:
                 region_stats[region]["closed"] += 1
-                region_stats[region]["exchanges"].append(f"❌ {name} ({country}) – Closed")
+            region_stats[region]["exchanges"].append(status_line)
+
         except Exception:
             continue
 
@@ -84,3 +110,6 @@ def market_status():
         "closed_count": total_closed,
         "summary": "\n".join(lines)
     })
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=3000)
