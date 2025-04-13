@@ -84,4 +84,26 @@ def market_status():
     total_open = sum(r["open"] for r in region_stats.values())
     total_closed = sum(r["closed"] for r in region_stats.values())
 
-    lines =
+    lines = [
+        "📊 Daily Global Exchange Status",
+        "",
+        f"Date: {now_utc.strftime('%m/%d/%y %I:%M%p')}",
+        "",
+        f"✅ Open Exchanges: {total_open}",
+        f"❌ Closed Exchanges: {total_closed}",
+        ""
+    ]
+
+    for region, stats in region_stats.items():
+        lines.append(f"🌍 {region} — Open: {stats['open']} | Closed: {stats['closed']}")
+        lines.extend(stats["exchanges"])
+        lines.append("")
+
+    return jsonify({
+        "open_count": total_open,
+        "closed_count": total_closed,
+        "summary": "\n".join(lines)
+    })
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=3000)
