@@ -1,99 +1,105 @@
 from flask import Flask, jsonify, request
 import requests
-from datetime import datetime, time
-from zoneinfo import ZoneInfo
+from datetime import datetime
+from collections import defaultdict
 
 app = Flask(__name__)
 
-API_KEY = 'dc9e776dd069479b906c09fbd9dcc9ba'  # Replace with your actual TwelveData API key
-SECRET_KEY = 'SECRET123'
-TRADING_START = time(9, 0)
-TRADING_END = time(17, 0)
-
+API_KEY = "dc9e776dd069479b906c09fbd9dcc9ba"
 INDEX_SYMBOLS = {
-    'NASDAQ': 'IXIC',
-    'NYSE': 'NYA'
+    "NASDAQ": "IXIC",
+    "NYSE": "NYA"
+}
+REGION_GROUPS = {
+    "Americas": ["United States", "Canada", "Brazil", "Mexico", "Argentina", "Chile", "Colombia", "Peru", "Venezuela", "Jamaica"],
+    "Europe": ["United Kingdom", "Germany", "France", "Italy", "Spain", "Switzerland", "Austria", "Belgium", "Czech Republic", "Denmark", "Estonia", "Finland", "Greece", "Hungary", "Iceland", "Ireland", "Latvia", "Lithuania", "Netherlands", "Norway", "Poland", "Portugal", "Romania", "Russia", "Sweden"],
+    "Asia-Pacific": ["Japan", "China", "Australia", "Hong Kong", "India", "Singapore", "South Korea", "Taiwan", "Thailand", "Malaysia", "Indonesia", "New Zealand", "Philippines", "Pakistan", "Israel"],
+    "Other": []  # Catch-all
 }
 
-REGIONS = {
-    "Americas": ["Argentina", "Brazil", "Canada", "Chile", "Colombia", "Jamaica", "Mexico", "Peru", "United States", "Venezuela"],
-    "Europe": ["Austria", "Belgium", "Czech Republic", "Denmark", "Estonia", "Finland", "France", "Germany", "Greece", "Hungary", "Iceland", "Ireland", "Italy", "Latvia", "Lithuania", "Netherlands", "Norway", "Poland", "Portugal", "Romania", "Russia", "Spain", "Sweden", "Switzerland", "United Kingdom"],
-    "Asia-Pacific": ["Australia", "China", "Hong Kong", "India", "Indonesia", "Israel", "Japan", "Malaysia", "New Zealand", "Pakistan", "Philippines", "Singapore", "South Korea", "Taiwan", "Thailand"],
-    "Other": []
-}
 
-def fetch_index(symbol: str, name: str):
-    url = f'https://api.twelvedata.com/quote?symbol={symbol}&apikey={API_KEY}'
+def fetch_index(symbol: str, name: str) -> str:
+    url = f"https://api.twelvedata.com/quote?symbol={symbol}&apikey={API_KEY}"
     try:
         r = requests.get(url)
         data = r.json()
-        price = float(data['close'])
-        change = float(data['percent_change'])
+        price = float(data["close"])
+        change = float(data["percent_change"])
         arrow = "▲" if change >= 0 else "▼"
         return f"{name}: {price:,.2f} {arrow} {change:+.2f}%"
     except Exception:
         return f"{name}: N/A"
 
-@app.route('/')
+
+@app.route("/")
 def market_status():
-    if request.args.get('key') != SECRET_KEY:
+    if request.args.get("key") != "SECRET123":
         return jsonify({"error": "Unauthorized"}), 403
 
-    r = requests.get(f'https://api.twelvedata.com/exchanges?apikey={API_KEY}')
-    data = r.json().get('data', [])
-    
-    seen = set()
-    grouped = {region: {"open": [], "closed": []} for region in REGIONS}
-    now_utc = datetime.utcnow()
+    r = requests.get(f"https://api.twelvedata.com/exchanges?apikey={API_KEY}")
+    exchanges = r.json().get("data", [])
+    now = datetime.utcnow().strftime("%m/%d/%y %I:%M%p")
 
-    for ex in data:
-        name = ex.get('name')
-        country = ex.get('country')
-        tz = ex.get('timezone')
-        code = ex.get('code')
+    open_ex, closed_ex = [], []
 
-        key = f"{name}|{country}"
-        if key in seen:
-            continue
-        seen.add(key)
+    for ex in exchanges:
+        name = ex.get("name")
+        country = ex.get("country")
+        is_open = ex.get("status") == "open"
 
-        try:
-            local_now = now_utc.replace(tzinfo=ZoneInfo('UTC')).astimezone(ZoneInfo(tz)).timetz()
-            is_open = TRADING_START <= local_now <= TRADING_END
-        except Exception:
-            is_open = False
+        label = f"{'✅' if is_open else '❌'} {name} ({country}) – {'Open' if is_open else 'Closed'}"
 
-        status = "✅" if is_open else "❌"
-        region = next((r for r, c_list in REGIONS.items() if country in c_list), "Other")
+        # Inject index stat if available
+        if name in INDEX_SYMBOLS and not is_open:
+            idx = fetch_index(INDEX_SYMBOLS[name], name)
+            label += f" — {idx}"
+
         if is_open:
-            grouped[region]["open"].append(f"{status} {name} ({country}) – Open")
+            open_ex.append((country, label))
         else:
-            suffix = ""
-            if name in INDEX_SYMBOLS:
-                suffix = f" — {fetch_index(INDEX_SYMBOLS[name], name)}"
-            grouped[region]["closed"].append(f"{status} {name} ({country}) – Closed{suffix}")
+            closed_ex.append((country, label))
 
-    html = "<div style='font-family:Arial, sans-serif;'>"
-    html += "<h2>📊 Daily Global Exchange Status</h2>"
-    html += f"<p><strong>Date:</strong> {datetime.now().strftime('%m/%d/%y %I:%M%p')}</p>"
+    # Group by region
+    def region_for(country: str) -> str:
+        for region, countries in REGION_GROUPS.items():
+            if country in countries:
+                return region
+        return "Other"
 
-    all_open = sum(len(g["open"]) for g in grouped.values())
-    all_closed = sum(len(g["closed"]) for g in grouped.values())
-    html += f"<p>✅ <strong>Open Exchanges:</strong> {all_open}<br>"
-    html += f"❌ <strong>Closed Exchanges:</strong> {all_closed}</p>"
+    region_data = defaultdict(lambda: {"open": 0, "closed": 0, "lines": []})
+    for country, label in open_ex:
+        region = region_for(country)
+        region_data[region]["open"] += 1
+        region_data[region]["lines"].append(label)
 
-    for region, lists in grouped.items():
-        html += f"<h3>🌍 {region} — Open: {len(lists['open'])} | Closed: {len(lists['closed'])}</h3>"
-        for line in lists['open'] + lists['closed']:
-            html += f"<p>{line}</p>"
+    for country, label in closed_ex:
+        region = region_for(country)
+        region_data[region]["closed"] += 1
+        region_data[region]["lines"].append(label)
 
-    html += "</div>"
+    # Format output in HTML
+    lines = [
+        "<div style='font-family:Arial,sans-serif;font-size:15px;color:#111;'>",
+        "<h2>📊 Daily Global Exchange Status</h2>",
+        f"<p><strong>Date:</strong> {now}</p>",
+        f"<p>✅ <strong>Open Exchanges:</strong> {len(open_ex)}<br>❌ <strong>Closed Exchanges:</strong> {len(closed_ex)}</p>",
+        "<hr style='border:none;border-top:1px solid #ddd;margin:20px 0;'>"
+    ]
+
+    for region in ["Americas", "Europe", "Asia-Pacific", "Other"]:
+        data = region_data.get(region)
+        if not data:
+            continue
+        lines.append(f"<p><strong>🌍 {region}</strong> — Open: {data['open']} | Closed: {data['closed']}</p>")
+        for entry in data["lines"]:
+            lines.append(f"<p style='margin:0;'>{entry}</p>")
+
+    lines.append("</div>")
 
     return jsonify({
-        "open_count": all_open,
-        "closed_count": all_closed,
-        "summary": html
+        "summary": "\n".join(line.replace("<p", "\n<p") for line in lines),  # plain text fallback
+        "html": "\n".join(lines)
     })
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=3000)
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=3000)
