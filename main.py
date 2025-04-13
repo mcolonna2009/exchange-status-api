@@ -5,75 +5,29 @@ from zoneinfo import ZoneInfo
 
 app = Flask(__name__)
 
-API_KEY = 'dc9e776dd069479b906c09fbd9dcc9ba'  # Replace with your TwelveData API key
+API_KEY = 'dc9e776dd069479b906c09fbd9dcc9ba'
 TRADING_START = time(9, 0)
 TRADING_END = time(17, 0)
 
-# Basic region mapping for grouping
 REGION_MAP = {
-    "Argentina": "Americas",
-    "Brazil": "Americas",
-    "Canada": "Americas",
-    "Mexico": "Americas",
-    "United States": "Americas",
-    "Chile": "Americas",
-    "Colombia": "Americas",
-    "Jamaica": "Americas",
-    "Venezuela": "Americas",
-
-    "Austria": "Europe",
-    "Belgium": "Europe",
-    "France": "Europe",
-    "Germany": "Europe",
-    "Italy": "Europe",
-    "Netherlands": "Europe",
-    "Portugal": "Europe",
-    "Spain": "Europe",
-    "Sweden": "Europe",
-    "Switzerland": "Europe",
-    "United Kingdom": "Europe",
-    "Czech Republic": "Europe",
-    "Denmark": "Europe",
-    "Estonia": "Europe",
-    "Finland": "Europe",
-    "Greece": "Europe",
-    "Hungary": "Europe",
-    "Iceland": "Europe",
-    "Ireland": "Europe",
-    "Latvia": "Europe",
-    "Lithuania": "Europe",
-    "Norway": "Europe",
-    "Poland": "Europe",
-    "Romania": "Europe",
-    "Russia": "Europe",
-
-    "Australia": "Asia-Pacific",
-    "China": "Asia-Pacific",
-    "Hong Kong": "Asia-Pacific",
-    "India": "Asia-Pacific",
-    "Indonesia": "Asia-Pacific",
-    "Israel": "Asia-Pacific",
-    "Japan": "Asia-Pacific",
-    "Kuwait": "Asia-Pacific",
-    "Malaysia": "Asia-Pacific",
-    "New Zealand": "Asia-Pacific",
-    "Pakistan": "Asia-Pacific",
-    "Philippines": "Asia-Pacific",
-    "Singapore": "Asia-Pacific",
-    "South Korea": "Asia-Pacific",
-    "Taiwan": "Asia-Pacific",
-    "Thailand": "Asia-Pacific",
-
-    "Botswana": "Other",
-    "Egypt": "Other",
-    "Qatar": "Other",
-    "Saudi Arabia": "Other",
-    "South Africa": "Other",
-    "Turkey": "Other",
-    "United Arab Emirates": "Other",
+    "Argentina": "Americas", "Brazil": "Americas", "Canada": "Americas", "Mexico": "Americas",
+    "United States": "Americas", "Chile": "Americas", "Colombia": "Americas", "Jamaica": "Americas",
+    "Venezuela": "Americas", "Austria": "Europe", "Belgium": "Europe", "France": "Europe",
+    "Germany": "Europe", "Italy": "Europe", "Netherlands": "Europe", "Portugal": "Europe",
+    "Spain": "Europe", "Sweden": "Europe", "Switzerland": "Europe", "United Kingdom": "Europe",
+    "Czech Republic": "Europe", "Denmark": "Europe", "Estonia": "Europe", "Finland": "Europe",
+    "Greece": "Europe", "Hungary": "Europe", "Iceland": "Europe", "Ireland": "Europe",
+    "Latvia": "Europe", "Lithuania": "Europe", "Norway": "Europe", "Poland": "Europe",
+    "Romania": "Europe", "Russia": "Europe", "Australia": "Asia-Pacific", "China": "Asia-Pacific",
+    "Hong Kong": "Asia-Pacific", "India": "Asia-Pacific", "Indonesia": "Asia-Pacific",
+    "Israel": "Asia-Pacific", "Japan": "Asia-Pacific", "Kuwait": "Asia-Pacific",
+    "Malaysia": "Asia-Pacific", "New Zealand": "Asia-Pacific", "Pakistan": "Asia-Pacific",
+    "Philippines": "Asia-Pacific", "Singapore": "Asia-Pacific", "South Korea": "Asia-Pacific",
+    "Taiwan": "Asia-Pacific", "Thailand": "Asia-Pacific", "Botswana": "Other", "Egypt": "Other",
+    "Qatar": "Other", "Saudi Arabia": "Other", "South Africa": "Other", "Turkey": "Other",
+    "United Arab Emirates": "Other"
 }
 
-# Optional: fetch a sample index (if market is closed)
 def fetch_index(symbol: str, name: str):
     url = f'https://api.twelvedata.com/quote?symbol={symbol}&apikey={API_KEY}'
     try:
@@ -144,7 +98,8 @@ def market_status():
     return jsonify({
         "open_count": open_exchanges,
         "closed_count": closed_exchanges,
-        "summary": "\n".join(lines)
+        "summary": "
+".join(lines)
     })
 
 if __name__ == '__main__':
