@@ -5,7 +5,7 @@ from zoneinfo import ZoneInfo
 
 app = Flask(__name__)
 
-API_KEY = 'YOUR_TWELVE_DATA_KEY'  # ← replace this with your actual API key
+API_KEY = 'dc9e776dd069479b906c09fbd9dcc9ba'  # ← replace this with your actual API key
 TRADING_START = time(9, 0)
 TRADING_END = time(17, 0)
 
