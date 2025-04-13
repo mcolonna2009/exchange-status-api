@@ -105,10 +105,10 @@ def market_status():
         lines.append("")
 
     return jsonify({
-        "open_count": total_open,
-        "closed_count": total_closed,
-        "summary": "\n".join(lines)
-    })
+    "summary": "\n".join(lines),
+    "open_count": total_open,
+    "closed_count": total_closed
+})
 
 
 if __name__ == '__main__':
